@@ -25,6 +25,16 @@ module ActiveSupport
         def pop; @queue.pop; end
       end
 
+      @after_fork_hooks = []
+
+      def self.after_fork_hook(&blk)
+        @after_fork_hooks << blk
+      end
+
+      def self.after_fork_hooks
+        @after_fork_hooks
+      end
+
       def initialize(queue_size)
         @queue_size  = queue_size
         @queue       = Server.new
@@ -38,24 +48,17 @@ module ActiveSupport
         File.join(Dir.tmpdir, Dir::Tmpname.make_tmpname('tests', 'fd'))
       end
 
+      def after_fork(i)
+        self.class.after_fork_hooks.each do |cb|
+          cb.call i
+        end
+      end
+
       def start
-        connection_spec = ActiveRecord::Base.configurations["test"]
         @pool = @queue_size.times.map { |i|
           fork {
             DRb.stop_service
-            # Setting up new connections is going to be different per app and per
-            # database.  Rather than hardcode the block below, we should configure
-            # the ForkingExecutor with a strategy object and call that
-            # connection_spec["database"] = "db/OMGLOL-#{i}.sqlite3"
-            connection_spec["database"] += "-#{i}"
-            ActiveRecord::Tasks::DatabaseTasks.create(connection_spec)
-            ActiveRecord::Base.establish_connection connection_spec
-            if ActiveRecord::Migrator.needs_migration?
-              old, ENV["VERBOSE"] = ENV["VERBOSE"], "false"
-              ActiveRecord::Tasks::DatabaseTasks.migrate
-              ENV["VERBOSE"] = old
-            end
-            ActiveRecord::Base.clear_all_connections!
+            after_fork(i)
 
             queue = DRbObject.new_with_uri @url
             while job = queue.pop
