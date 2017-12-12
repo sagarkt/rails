@@ -523,6 +523,14 @@ module ApplicationTests
         capture(:stderr) { run_test_command("test/models/post_test.rb --fail-fast", stderr: true) })
     end
 
+    def test_run_in_parallel
+      file_name = create_parallel_test_file
+
+      output = run_test_command(file_name)
+
+      assert_match %r{Finished in.*\n1 runs, 2 assertions}, output
+    end
+
     def test_raise_error_when_specified_file_does_not_exist
       error = capture(:stderr) { run_test_command("test/not_exists.rb", stderr: true) }
       assert_match(%r{cannot load such file.+test/not_exists\.rb}, error)
@@ -807,6 +815,18 @@ module ApplicationTests
           class #{name.camelize}Test < ActiveSupport::TestCase
             def test_truth
               puts "#{name.camelize}Test" if #{print}
+              assert #{pass}, 'wups!'
+            end
+          end
+        RUBY
+      end
+
+      def create_parallel_test_file
+        app_file "test/models/parallel_test.rb", <<-RUBY
+          require 'test_helper'
+
+          class ParallelTest < ActiveSupport::TestCase
+            def test_truth
               assert #{pass}, 'wups!'
             end
           end
