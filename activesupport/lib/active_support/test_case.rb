@@ -11,6 +11,7 @@ require "active_support/testing/isolation"
 require "active_support/testing/constant_lookup"
 require "active_support/testing/time_helpers"
 require "active_support/testing/file_fixtures"
+require "active_support/testing/parallelization"
 
 module ActiveSupport
   class TestCase < ::Minitest::Test
@@ -38,6 +39,12 @@ module ActiveSupport
       # Defaults to +:random+.
       def test_order
         ActiveSupport.test_order ||= :random
+      end
+
+      def parallelize(workers: 2)
+        Minitest.parallel_executor = Testing::Parallelization.new(workers)
+
+        parallelize_me!
       end
     end
 
