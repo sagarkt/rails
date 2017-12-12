@@ -502,10 +502,10 @@ module ApplicationTests
     end
 
     def test_output_inline_by_default
-      create_test_file :models, "post", pass: false
+      create_test_file :models, "post", pass: false, print: false
 
       output = run_test_command("test/models/post_test.rb")
-      expect = %r{Running:\n\nPostTest\nF\n\nFailure:\nPostTest#test_truth \[[^\]]+test/models/post_test.rb:6\]:\nwups!\n\nbin/rails test test/models/post_test.rb:4\n\n\n\n}
+      expect = %r{Running:\n\nF\n\nFailure:\nPostTest#test_truth \[[^\]]+test/models/post_test.rb:6\]:\nwups!\n\nbin/rails test test/models/post_test.rb:4\n\n\n\n}
       assert_match expect, output
     end
 
@@ -800,13 +800,13 @@ module ApplicationTests
         RUBY
       end
 
-      def create_test_file(path = :unit, name = "test", pass: true)
+      def create_test_file(path = :unit, name = "test", pass: true, print: true)
         app_file "test/#{path}/#{name}_test.rb", <<-RUBY
           require 'test_helper'
 
           class #{name.camelize}Test < ActiveSupport::TestCase
             def test_truth
-              puts "#{name.camelize}Test"
+              puts "#{name.camelize}Test" if #{print}
               assert #{pass}, 'wups!'
             end
           end
