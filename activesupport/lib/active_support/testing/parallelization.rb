@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'drb'
-require 'drb/unix'
-require 'tempfile'
+require "drb"
+require "drb/unix"
+require "tempfile"
 
 module ActiveSupport
   module Testing
@@ -36,48 +36,43 @@ module ActiveSupport
       end
 
       def initialize(queue_size)
-        @queue_size  = queue_size
-        @queue       = Server.new
-        @url         = "drbunix://#{file}"
-        @pool        = []
+        @queue_size = queue_size
+        @queue      = Server.new
+        @url        = "drbunix://#{file}"
+        @pool       = []
 
         DRb.start_service(@url, @queue)
       end
 
       def file
-        File.join(Dir.tmpdir, Dir::Tmpname.make_tmpname('tests', 'fd'))
+        File.join(Dir.tmpdir, Dir::Tmpname.make_tmpname("tests", "fd"))
       end
 
-      def after_fork(i)
+      def after_fork(worker)
         self.class.after_fork_hooks.each do |cb|
-          cb.call i
+          cb.call(worker)
         end
       end
 
       def start
-        @pool = @queue_size.times.map { |i|
-          fork {
+        @pool = @queue_size.times.map do |worker|
+          fork do
             DRb.stop_service
-            after_fork(i)
 
-            queue = DRbObject.new_with_uri @url
+            after_fork(worker)
+
+            queue = DRbObject.new_with_uri(@url)
+
             while job = queue.pop
               klass    = job[0]
               method   = job[1]
               reporter = job[2]
-              result = Minitest.run_one_method klass, method
-              result.failures = result.failures.map { |error|
-                assertion = Minitest::Assertion.new error.message
-                assertion.set_backtrace error.backtrace
-                assertion
-              }
+              result   = Minitest.run_one_method(klass, method)
 
-              queue.record reporter, result
+              queue.record(reporter, result)
             end
-
-            # We should also call the strategy object here for cleanup.
-          }
-        }
+          end
+        end
       end
 
       def << work
