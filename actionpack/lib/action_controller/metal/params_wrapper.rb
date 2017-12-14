@@ -142,6 +142,7 @@ module ActionController
         model_name = klass.name.sub(/Controller$/, '').classify
 
         begin
+          binding.pry
           if model_klass = model_name.safe_constantize
             model_klass
           else
